@@ -9,6 +9,7 @@ int main(){
     int verbosity = SSH_LOG_PROTOCOL;
     int port = 22;
     int rc;
+    char *password;
 
     my_ssh_session = ssh_new();
     if (my_ssh_session == NULL)
@@ -28,11 +29,33 @@ int main(){
                 ssh_get_error(my_ssh_session));
         exit(-1);
     }
+    //verify the server's identity
+    if (verify_knownhost(my_ssh_session) < 0) {
+        fprintf(stderr, "Error verifying server identity\n");
+        ssh_disconnect(my_ssh_session);
+        ssh_free(my_ssh_session);
+        exit(-1);
+    }
+
+    //user authentication
+    password = getpass("Enter your password: ");
+    rc = ssh_userauth_password(my_ssh_session, NULL, password);
+    if (rc != SSH_AUTH_SUCCESS) {
+        fprintf(stderr, "Error authenticating with password: %s\n",
+                ssh_get_error(my_ssh_session));
+        ssh_disconnect(my_ssh_session);
+        ssh_free(my_ssh_session);
+        exit(-1);
+    }
+
 
     ssh_disconnect(my_ssh_session);
     ssh_free(my_ssh_session);
     return 0;
 }
+
+//verify the server's identity by checking its public key against the known hosts file. 
+//This is a crucial step
 
 int verify_knownhost(ssh_session session)
 {
